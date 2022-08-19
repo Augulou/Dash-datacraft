@@ -1,4 +1,4 @@
-import dash
+from dash import Dash, dash_table, dcc, html, Input, Output, callback
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
@@ -6,55 +6,73 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-df = pd.read_csv("Communaute.csv")
-#df = df.groupby('Statut')[['Street_robbery', 'Drugs']].median()
-df = df.groupby('Statut')
+df = pd.read_csv('C:/Users/augus/Documents/Datacraft/V0_Dash/Communaute.csv')
+df = df[['fullname','Organisation','Titre','Email','Statut']]
+
+df.fillna("", inplace=True)
+
+app.layout = dbc.Container([
+    dcc.Markdown('# Dashboard datacraft', style={'textAlign':'center'}),
+
+    dbc.Label("Nombre de lignes :"),
+        row_drop := dcc.Dropdown(value=10, clearable=False, style={'width':'35%'},
+                             options=[10, 20, 30]),
 
 
-app.layout = html.Div([
-        dbc.Row(dbc.Col(html.H3("Dashboard datacraft"),
-                        width={'size': 2 , 'offset': 5},
-                        ),
-                ),
+    my_table := dash_table.DataTable(
+            columns=[
+                {'name': 'Nom', 'id': 'fullname', 'type': 'text'},
+                {'name': 'Entreprise', 'id': 'Organisation', 'type': 'text'},
+                {'name': 'Metier', 'id': 'Titre', 'type': 'text'},
+                {'name': 'Mail', 'id': 'Email', 'type': 'text'},
+                {'name': 'Statut', 'id': 'Statut', 'type': 'text'}
+            ],
+            data=df.to_dict('records'),
+            filter_action='native',
+            page_size=10,
+            
+            style_data={
+            'width': '20%', 'minWidth': '20%', 'maxWidth': '20%',
+            'overflow': 'hidden',
+            'textOverflow': 'ellipsis',
+                }
+            ),
     
-                
-        dbc.Row(
-            [
-                dbc.Col(dbc.Button(children="Vive", size = 4, color="primary", className="me-1",
-                        style={'font-size': '50px', 'width': '100%', 'display': 'inline-block', 'height':'800px'}),
-                        ),
-                
-    
-                dbc.Col(dbc.Button("la", size = 4, color="light", className="me-2",
-                        style={'font-size': '50px', 'width': '100%', 'display': 'inline-block', 'height':'800px'}),
-                        ),
-                
-                dbc.Col(dbc.Button("France", color="danger", className="me-3",
-                        style={'font-size': '50px', 'width': '100%', 'display': 'inline-block', 'height':'800px'}),
-                        ),
-                ]),
-        
-        dbc.Row(
-            [
-                dbc.Col(dcc.Dropdown(id='a_dropdown', placeholder='Type de personne',
-                                     options=[{'label': 'Freelance en résidence', 'value': 'freelance'},
-                                              {'label': 'Full membership', 'value': 'full'},
-                                              {'label': 'Corporate membership', 'value': 'corporate'},
-                                              {'label': 'Chercheur en résidence', 'value': 'chercheur'}]),
-                        width={'size': 4, "offset": 4, 'order':1 }),
-            ]),
+        dbc.Row([
+            dbc.Col([
+                entreprise_drop := dcc.Dropdown([y for y in sorted(df.Organisation.unique())], multi=True)
+            ], width=3, style={'margin-left':'35%'}),
+            
+            dbc.Col([
+                statut_drop := dcc.Dropdown([x for x in sorted(df.Statut.unique())], multi=True)
+            ], width=3, style={'margin-left':'15%'}),
+        ])
 ])
+        
+@callback(
+    Output(my_table, 'data'),
+    Output(my_table, 'page_size'),
+    Input(statut_drop, 'value'),
+    Input(entreprise_drop, 'value'),
+    Input(row_drop, 'value')
+)
+
+def update_dropdown_options(statut_v, entreprise_v, row_v):
+    dff = df.copy()
+    
+
+    if statut_v:
+        dff = dff[dff.Statut.isin(statut_v)]
+    
+    if entreprise_v:
+        dff = dff[dff.Organisation.isin(entreprise_v)]
+
+    return dff.to_dict('records'), row_v
 
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
-
-#@app.callback(
-#    [Output('pie_chart1', 'figure'),
-#     Output('pie_chart2', 'figure')],
-#    [Input('a_dropdown', 'value'),
-#     Input('b_dropdown', 'value')]
-#)
+    
+    
